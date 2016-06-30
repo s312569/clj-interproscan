@@ -117,7 +117,7 @@
   each group using pmap."
   ([file outfile] (ips-file file outfile {}))
   ([file outfile {:keys [appl lookup goterms precalc pathways]
-                  :or {appl '("Pfam") lookup true goterms true precalc false pathways false}
+                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true}
                   :as m}]
    (with-open [r (io/reader file)]
      (ips (fa/fasta-seq r) outfile m))))
