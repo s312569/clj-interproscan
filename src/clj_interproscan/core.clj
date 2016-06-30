@@ -47,7 +47,7 @@
                         {:models (map :attrs (zf/xml-> sign :models :model zip/node))}
                         {:entry
                          (merge (:attrs (zf/xml1-> entry zip/node))
-                                {:gos (map :attrs (zf/xml-> entry :go-xref zip/node))}
+                                {:gos (map :attrs (zf/xml-> % :signature :entry :go-xref zip/node))}
                                 {:pathways (map :attrs (zf/xml-> entry :pathway-xref zip/node))})})}))
        (zf/xml-> zipper :matches :hmmer3-match)))
 

@@ -48,13 +48,18 @@ zippers it is easy to get at your information using
 ```clojure
 user> (with-open [r (io/reader tf)]
                          (->> (ips-seq r)
-                              second
+                              first
                               hmmer-3-seq
                               first))
-{:evalue "8.5E-21", :score "73.6", :signature {:ac "PF07654", :desc "Immunoglobulin C1-set domain",
- :name "C1-set", :abstract nil, :comment nil, :xrefs (), :deprecated-acs (), :models ({:ac "PF07654",
- :desc "Immunoglobulin C1-set domain", :name "C1-set"}), :entry {:ac "IPR003597",
- :desc "Immunoglobulin C1-set", :name "Ig_C1-set", :type "DOMAIN", :gos (), :pathways ()}}}
+{:evalue "1.3E-13", :score "50.0", :signature {:ac "PF06623", :desc "MHC_I C-terminus",
+ :name "MHC_I_C", :abstract nil, :comment nil, :xrefs (), :deprecated-acs (), :models
+ ({:ac "PF06623", :desc "MHC_I C-terminus", :name "MHC_I_C"}), :entry {:ac "IPR010579",
+ :desc "MHC class I, alpha chain, C-terminal", :name "MHC_I_a_C", :type "DOMAIN", :gos
+ ({:category "BIOLOGICAL_PROCESS", :db "GO", :id "GO:0006955", :name "immune response"}
+ {:category "CELLULAR_COMPONENT", :db "GO", :id "GO:0042612",
+ :name "MHC class I protein complex"} {:category "CELLULAR_COMPONENT", :db "GO",
+ :id "GO:0016020", :name "membrane"} {:category "BIOLOGICAL_PROCESS", :db "GO",
+ :id "GO:0019882", :name "antigen processing and presentation"}), :pathways ()}}}
 user>
 ```
 ## License
