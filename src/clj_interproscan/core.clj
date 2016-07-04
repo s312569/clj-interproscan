@@ -56,10 +56,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- ips-command
-  [& {:keys [infile outfile appl precalc pathways lookup goterms]}]
+  [& {:keys [infile outfile appl precalc pathways lookup goterms seqtype]}]
   (vec
    (remove nil? (-> (list
-                     "interproscan.sh" "-i" (str infile) "-o" (str outfile) "-seqtype" "p" "-f" "XML"
+                     "interproscan.sh" "-i" (str infile) "-o" (str outfile) "-seqtype" seqtype "-f" "XML"
                      (if appl (str "-appl " (apply str (interpose "," appl))))
                      (if (not precalc) "-dp")
                      (if pathways "-pa")
@@ -67,12 +67,13 @@
                      (if goterms "-goterms"))))))
 
 (defn- run-ips
-  [& {:keys [infile outfile appl precalc pathways lookup goterms]}]
+  [& {:keys [infile outfile appl precalc pathways lookup goterms seqtype]}]
   (try
     (let [command (ips-command :infile infile
                                :outfile outfile
                                :appl appl
                                :precalc precalc
+                               :seqtype seqtype
                                :lookup lookup
                                :goterms goterms
                                :pathways pathways)
@@ -93,8 +94,8 @@
   default is \"Pfam\" only. To run all analyses set :appl to
   nil. Splits sequences into lots of 10,000 and runs interproscan
   concurrently on each group using pmap."
-  [coll outfile {:keys [appl lookup goterms precalc pathways]
-                 :or {appl '("Pfam") lookup true goterms true precalc false pathways true}}]
+  [coll outfile {:keys [appl lookup goterms precalc pathways seqtype]
+                 :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}}]
   (let [c (atom 0)]
     (pmap 
      #(let [i (fa/fasta->file % (fs/temp-file "ips-input") :append false)]
@@ -104,6 +105,7 @@
                    :appl appl
                    :precalc precalc
                    :pathways pathways
+                   :seqtype seqtype
                    :lookup lookup
                    :goterms goterms)
           (finally (fs/delete i))))
@@ -116,8 +118,8 @@
   sequences into lots of 10,000 and runs interproscan concurrently on
   each group using pmap."
   ([file outfile] (ips-file file outfile {}))
-  ([file outfile {:keys [appl lookup goterms precalc pathways]
-                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true}
+  ([file outfile {:keys [appl lookup goterms precalc pathways seqtype]
+                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}
                   :as m}]
    (with-open [r (io/reader file)]
      (ips (fa/fasta-seq r) outfile m))))
