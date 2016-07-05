@@ -37,7 +37,7 @@
   "Returns a map representing a hmmer-3 match."
   [zipper]
   (map #(let [sign (xml1-> % :signature)
-              entry (xml1-> % :signature :entry)]
+             entry (xml1-> % :signature :entry)]
          (merge (:attrs (node %))
                 {:signature
                  (merge (:attrs (node sign))
@@ -47,10 +47,10 @@
                         {:deprecated-acs (xml-> sign :deprecated-ac text)}
                         {:models (map :attrs (xml-> sign :models :model node))}
                         {:entry
-                         (merge (:attrs (xml1-> entry node))
-                                {:gos (map :attrs (xml-> % :signature :entry :go-xref
-                                                         node))}
-                                {:pathways (map :attrs (xml-> entry :pathway-xref node))})})}))
+                         (if entry
+                           (merge (:attrs (xml1-> entry node))
+                                  {:gos (map :attrs (xml-> entry :go-xref node))}
+                                  {:pathways (map :attrs (xml-> entry :pathway-xref node))}))})}))
        (xml-> zipper :matches :hmmer3-match)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

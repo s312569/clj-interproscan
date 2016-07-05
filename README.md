@@ -7,7 +7,7 @@ A Clojure library for running Interproscan and parsing the results.
 To include add the following to your projects.clj file:
 
 ```clojure
-[clj-interproscan "0.1.3"]
+[clj-interproscan "0.1.4"]
 ```
 
 To run interproscan on a fasta formatted file of protein sequences:
