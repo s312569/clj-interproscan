@@ -1,12 +1,13 @@
 (ns clj-interproscan.core
-  (:require [clojure.data.xml :as xml]
-            [clojure.data.zip.xml :as zf]
-            [clojure.java.io :as io]
-            [clj-commons-exec :as exec]
-            [clojure.zip :as zip]
-            [clojure.string :as string]
-            [clj-fasta.core :as fa]
-            [me.raynes.fs :as fs]))
+  (:require [clojure.data.xml :refer [parse]]
+            [clojure.data.zip.xml :refer [xml1-> attr text xml->]]
+            [clojure.java.io :refer [reader]]
+            [clj-commons-exec :refer [sh]]
+            [clojure.zip :refer [xml-zip node]]
+            [clojure.string :refer []]
+            [clj-fasta.core :refer [fasta->file fasta-seq]]
+            [biodb.core :refer [table-spec prep-sequences freeze thaw restore-sequence]]
+            [me.raynes.fs :refer [delete temp-file absolute]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; proteins
@@ -16,17 +17,17 @@
   "Returns a lazy list of 'protein' zippers from an Interproscan xml
   results file."
   [reader]
-  (->> (:content (xml/parse reader))
+  (->> (:content (parse reader))
        (filter (fn [x] (= :protein (:tag x))))
-       (map zip/xml-zip)))
+       (map xml-zip)))
 
 (defn accession
   [zipper]
-  (zf/xml1-> zipper :xref (zf/attr :id)))
+  (xml1-> zipper :xref (attr :id)))
 
 (defn description
   [zipper]
-  (zf/xml1-> zipper :xref (zf/attr :desc)))
+  (xml1-> zipper :xref (attr :desc)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; accessors
@@ -35,21 +36,22 @@
 (defn hmmer-3-seq
   "Returns a map representing a hmmer-3 match."
   [zipper]
-  (map #(let [sign (zf/xml1-> % :signature)
-              entry (zf/xml1-> % :signature :entry)]
-         (merge (:attrs (zip/node %))
+  (map #(let [sign (xml1-> % :signature)
+              entry (xml1-> % :signature :entry)]
+         (merge (:attrs (node %))
                 {:signature
-                 (merge (:attrs (zip/node sign))
-                        {:abstract (zf/xml1-> sign :abstract zf/text)}
-                        {:comment (zf/xml1-> sign :comment zf/text)}
-                        {:xrefs (map :attrs (zf/xml-> sign :xref zip/node))}
-                        {:deprecated-acs (zf/xml-> sign :deprecated-ac zf/text)}
-                        {:models (map :attrs (zf/xml-> sign :models :model zip/node))}
+                 (merge (:attrs (node sign))
+                        {:abstract (xml1-> sign :abstract text)}
+                        {:comment (xml1-> sign :comment text)}
+                        {:xrefs (map :attrs (xml-> sign :xref node))}
+                        {:deprecated-acs (xml-> sign :deprecated-ac text)}
+                        {:models (map :attrs (xml-> sign :models :model node))}
                         {:entry
-                         (merge (:attrs (zf/xml1-> entry zip/node))
-                                {:gos (map :attrs (zf/xml-> % :signature :entry :go-xref zip/node))}
-                                {:pathways (map :attrs (zf/xml-> entry :pathway-xref zip/node))})})}))
-       (zf/xml-> zipper :matches :hmmer3-match)))
+                         (merge (:attrs (xml1-> entry node))
+                                {:gos (map :attrs (xml-> % :signature :entry :go-xref
+                                                         node))}
+                                {:pathways (map :attrs (xml-> entry :pathway-xref node))})})}))
+       (xml-> zipper :matches :hmmer3-match)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; running
@@ -79,13 +81,13 @@
                                :pathways pathways)
           ips (do
                 (println (str "Running: " command))
-                @(exec/sh command))]
+                @(sh command))]
       (if (= 0 (:exit ips))
         outfile
         (do (println ips)
             (throw (Throwable. (str "Interproscan error: " (:err ips)))))))
     (catch Exception e
-      (fs/delete outfile)
+      (delete outfile)
       (throw e))))
 
 (defn ips
@@ -98,17 +100,17 @@
                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}}]
   (let [c (atom 0)]
     (pmap 
-     #(let [i (fa/fasta->file % (fs/temp-file "ips-input") :append false)]
+     #(let [i (fasta->file % (temp-file "ips-input") :append false)]
         (try
-          (run-ips :infile (fs/absolute i)
-                   :outfile (str (fs/absolute outfile) "-" (swap! c inc) ".xml")
+          (run-ips :infile (absolute i)
+                   :outfile (str (absolute outfile) "-" (swap! c inc) ".xml")
                    :appl appl
                    :precalc precalc
                    :pathways pathways
                    :seqtype seqtype
                    :lookup lookup
                    :goterms goterms)
-          (finally (fs/delete i))))
+          (finally (delete i))))
      (partition-all 10000 coll))))
 
 (defn ips-file
@@ -121,5 +123,23 @@
   ([file outfile {:keys [appl lookup goterms precalc pathways seqtype]
                   :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}
                   :as m}]
-   (with-open [r (io/reader file)]
-     (ips (fa/fasta-seq r) outfile m))))
+   (with-open [r (reader file)]
+     (ips (fasta-seq r) outfile m))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; integration with biodb
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod table-spec :ips
+  [q]
+  (vector [:accession :text "PRIMARY KEY"]
+          [:src :binary "NOT NULL"]))
+
+(defmethod prep-sequences :ips
+  [q]
+  (->> (:coll q)
+       (map #(hash-map :accession (accession %) :src (freeze (node %))))))
+
+(defmethod restore-sequence :ips
+  [q]
+  (xml-zip (thaw (:src (dissoc q :type)))))
