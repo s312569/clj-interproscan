@@ -79,16 +79,10 @@
                                :lookup lookup
                                :goterms goterms
                                :pathways pathways)
-          ips (do
-                (println (str "Running: " command))
-                @(sh command))]
+          ips (do (println (str "Running: " command)) @(sh command))]
       (if (= 0 (:exit ips))
         outfile
-        (do (println ips)
-            (throw (Throwable. (str "Interproscan error: " (:err ips)))))))
-    (catch Exception e
-      (delete outfile)
-      (throw e))))
+        (throw (Exception. (str "Interproscan error: " (:err ips))))))))
 
 (defn ips
   "Runs interproscan on a collection of fasta formatted protein
@@ -98,20 +92,27 @@
   concurrently on each group using pmap."
   [coll outfile {:keys [appl lookup goterms precalc pathways seqtype]
                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}}]
-  (let [c (atom 0)]
-    (pmap 
-     #(let [i (fasta->file % (temp-file "ips-input") :append false)]
-        (try
-          (run-ips :infile (absolute i)
-                   :outfile (str (absolute outfile) "-" (swap! c inc) ".xml")
-                   :appl appl
-                   :precalc precalc
-                   :pathways pathways
-                   :seqtype seqtype
-                   :lookup lookup
-                   :goterms goterms)
-          (finally (delete i))))
-     (partition-all 10000 coll))))
+  (let [c (atom 0)
+        fl (atom [])]
+    (try
+      (pmap 
+       #(let [i (fasta->file % (temp-file "ips-input") :append false)
+              o (str (absolute outfile) "-" (swap! c inc) ".xml")]
+          (swap! fl conj o)
+          (try
+            (run-ips :infile (absolute i)
+                     :outfile o
+                     :appl appl
+                     :precalc precalc
+                     :pathways pathways
+                     :seqtype seqtype
+                     :lookup lookup
+                     :goterms goterms)
+            (finally (delete i))))
+       (partition-all 10000 coll))
+      (catch Exception e
+        (doseq [f @fl] (delete f))
+        (throw e)))))
 
 (defn ips-file
   "Runs interproscan on a file of fasta formatted protein
