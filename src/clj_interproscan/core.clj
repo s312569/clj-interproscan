@@ -95,21 +95,22 @@
   (let [c (atom 0)
         fl (atom [])]
     (try
-      (pmap 
-       #(let [i (fasta->file % (temp-file "ips-input") :append false)
-              o (str (absolute outfile) "-" (swap! c inc) ".xml")]
-          (swap! fl conj o)
-          (try
-            (run-ips :infile (absolute i)
-                     :outfile o
-                     :appl appl
-                     :precalc precalc
-                     :pathways pathways
-                     :seqtype seqtype
-                     :lookup lookup
-                     :goterms goterms)
-            (finally (delete i))))
-       (partition-all 10000 coll))
+      (doall
+       (pmap 
+        #(let [i (fasta->file % (temp-file "ips-input") :append false)
+               o (str (absolute outfile) "-" (swap! c inc) ".xml")]
+           (swap! fl conj o)
+           (try
+             (run-ips :infile (absolute i)
+                      :outfile o
+                      :appl appl
+                      :precalc precalc
+                      :pathways pathways
+                      :seqtype seqtype
+                      :lookup lookup
+                      :goterms goterms)
+             (finally (delete i))))
+        (partition-all 10000 coll)))
       (catch Exception e
         (doseq [f @fl] (delete f))
         (throw e)))))
