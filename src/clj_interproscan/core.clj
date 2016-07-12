@@ -89,14 +89,14 @@
   sequences (see clj-fasta). Specify analyses using the :appl keyword,
   default is \"Pfam\" only. To run all analyses set :appl to
   nil. Splits sequences into lots of 10,000 and runs interproscan
-  concurrently on each group using pmap."
+  on each group."
   [coll outfile {:keys [appl lookup goterms precalc pathways seqtype]
                  :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}}]
   (let [c (atom 0)
         fl (atom [])]
     (try
       (doall
-       (pmap 
+       (map 
         #(let [i (fasta->file % (temp-file "ips-input") :append false)
                o (str (absolute outfile) "-" (swap! c inc) ".xml")]
            (swap! fl conj o)
@@ -119,8 +119,7 @@
   "Runs interproscan on a file of fasta formatted protein
   sequences. Specify analyses using the :appl keyword, default is
   \"Pfam\" only. To run all analyses set :appl to nil. Splits
-  sequences into lots of 10,000 and runs interproscan concurrently on
-  each group using pmap."
+  sequences into lots of 10,000 and runs interproscan on each group."
   ([file outfile] (ips-file file outfile {}))
   ([file outfile {:keys [appl lookup goterms precalc pathways seqtype]
                   :or {appl '("Pfam") lookup true goterms true precalc false pathways true seqtype "p"}
