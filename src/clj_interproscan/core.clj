@@ -67,6 +67,7 @@
   [lt]
   #(let [sign (xml1-> % :signature)
          entry (xml1-> % :signature :entry)]
+     (println lt)
      (merge (:attrs (node %))
             {:locations (locations % lt)}
             {:signature
@@ -160,7 +161,8 @@
     (->> (filter #((set (keys tag-location?)) (:tag %))
                  (:content loc))
          (map #(vector (xml-zip %) (:tag %)))
-         (map (fn [[z t]] (assoc ((signature-parser t) z) :tag t))))))
+         (map (fn [[z t]]
+                (assoc ((signature-parser (tag-location? t)) z) :tag t))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; go's
