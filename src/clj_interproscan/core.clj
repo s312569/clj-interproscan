@@ -1,6 +1,6 @@
 (ns clj-interproscan.core
   (:require [clojure.data.xml :refer [parse]]
-            [clojure.data.zip.xml :refer [xml1-> attr text xml->]]
+            [clojure.data.zip.xml :refer [xml1-> attr text xml-> tag=]]
             [clojure.java.io :refer [reader]]
             [clj-commons-exec :refer [sh]]
             [clojure.zip :refer [xml-zip node]]
@@ -32,6 +32,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; accessors
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def tag-location?
+  {:hmmer3-match :hmmer3-location
+   :hmmer2-match :hmmer2-location
+   :profilescan-match :profilescan-location
+   :superfamilyhmmer3-match :superfamilyhmmer3-location
+   :patternscan-match :patternscan-location
+   :tmhmm-match :tmhmm-location
+   :signalp-match :signalp-location
+   :coils-match :coils-location
+   :fingerprints-match :fingerprints-location
+   :panther-match :panther-location
+   :phobius-match :phobius-location
+   :blastprodom-match :blastprodom-location
+   :rpsblast-match :rpsblast-location})
 
 (defmulti locations (fn [z lt]
                       (if (#{:patternscan-location :profilescan-location} lt)
@@ -69,75 +84,99 @@
                               {:pathways (map :attrs (xml-> entry :pathway-xref node))}))})})))
 
 (defn- parse-tag
-  [z t lt]
-  (map (signature-parser lt) (xml-> z :matches t)))
+  [z t]
+  (map (signature-parser (tag-location? t)) (xml-> z :matches t)))
 
 (defn hmmer-3-seq
   "Returns a lazy list of maps representing hmmer-3 matches."
   [zipper]
-  (parse-tag zipper :hmmer3-match :hmmer3-location))
+  (parse-tag zipper :hmmer3-match))
 
 (defn hmmer-2-seq
   "Returns a lazy list of maps representing hmmer-2 matches."
   [zipper]
-  (parse-tag zipper :hmmer2-match :hmmer2-location))
+  (parse-tag zipper :hmmer2-match))
 
 (defn profilescan-seq
   "Returns a lazy list of maps representing profilescan matches."
   [zipper]
-  (parse-tag zipper :profilescan-match :profilescan-location))
+  (parse-tag zipper :profilescan-match))
 
 (defn superfamily-seq
   "Returns a lazy list of maps representing superfamily matches."
   [zipper]
-  (parse-tag zipper :superfamilyhmmer3-match :superfamilyhmmer3-location))
+  (parse-tag zipper :superfamilyhmmer3-match))
 
 (defn patternscan-seq
   "Returns a lazy list of maps representing patternscan matches."
   [zipper]
-  (parse-tag zipper :patternscan-match :patternscan-location))
+  (parse-tag zipper :patternscan-match))
 
 (defn tmhmm-seq
   "Returns a lazy list of maps representing tmhmm matches."
   [zipper]
-  (parse-tag zipper :tmhmm-match :tmhmm-location))
+  (parse-tag zipper :tmhmm-match))
 
 (defn signalp-seq
   "Returns a lazy list of maps representing signalp matches."
   [zipper]
-  (parse-tag zipper :signalp-match :signalp-location))
+  (parse-tag zipper :signalp-match))
 
 (defn coils-seq
   "Returns a lazy list of maps representing coils matches."
   [zipper]
-  (parse-tag zipper :coils-match :coils-location))
+  (parse-tag zipper :coils-match))
 
 (defn fingerprints-seq
   "Returns a lazy list of maps representing fingerprint matches."
   [zipper]
-  (parse-tag zipper :fingerprints-match :fingerprints-location))
+  (parse-tag zipper :fingerprints-match))
 
 (defn panther-seq
   "Returns a lazy list of maps representing panther matches."
   [zipper]
-  (parse-tag zipper :panther-match :panther-location))
+  (parse-tag zipper :panther-match))
 
 (defn phobius-seq
   "Returns a lazy list of maps representing phobius matches."
   [zipper]
-  (parse-tag zipper :phobius-match :phobius-location))
+  (parse-tag zipper :phobius-match))
 
 (defn blastprodom-seq
   "Returns a lazy list of maps representing blastprodom matches."
   [zipper]
-  (parse-tag zipper :blastprodom-match :blastprodom-location))
+  (parse-tag zipper :blastprodom-match))
 
 (defn rpsblast-seq
   "Returns a lazy list of maps representing rpsblast matches."
   [zipper]
-  (parse-tag zipper :rpsblast-match :rpsblast-location))
+  (parse-tag zipper :rpsblast-match))
 
-;;(def tf "/home/jason/Dropbox/jellydb/resources/test-data/ips-test.xml")
+(defn any-seq
+  "Returns a lazy list of maps representing all matches. The type of
+  match is the value of :tag in the returned map."
+  [zipper]
+  (let [loc (first (xml-> zipper :matches node))]
+    (->> (filter #((set (keys tag-location?)) (:tag %))
+                 (:content loc))
+         (map #(vector (xml-zip %) (:tag %)))
+         (map (fn [[z t]] (assoc ((signature-parser t) z) :tag t))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; go's
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn go-terms
+  "Returns a lazy list of all GO entries from an interproscan zipper."
+  [zipper]
+  (->> (any-seq zipper)
+       (mapcat #(get-in % [:signature :entry :gos]))))
+
+(defn pathways
+  "Returns a lazy list of all pathway entries from an interproscan zipper."
+  [zipper]
+  (->> (any-seq zipper)
+       (mapcat #(get-in % [:signature :entry :pathways]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; running
