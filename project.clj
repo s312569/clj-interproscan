@@ -1,4 +1,4 @@
-(defproject clj-interproscan "0.1.8"
+(defproject clj-interproscan "0.1.9"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
