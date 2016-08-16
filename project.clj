@@ -9,5 +9,4 @@
                  [biodb "0.1.9"]
                  [org.clojars.hozumi/clj-commons-exec "1.2.0"]
                  [clj-fasta "0.1.7"]
-                 [me.raynes/fs "1.4.6"]]
-  :plugins [[cider/cider-nrepl "0.14.0-SNAPSHOT"]])
+                 [me.raynes/fs "1.4.6"]])
