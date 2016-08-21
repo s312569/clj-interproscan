@@ -67,7 +67,6 @@
   [lt]
   #(let [sign (xml1-> % :signature)
          entry (xml1-> % :signature :entry)]
-     (println lt)
      (merge (:attrs (node %))
             {:locations (locations % lt)}
             {:signature
